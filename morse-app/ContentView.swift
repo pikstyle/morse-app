@@ -6,10 +6,12 @@
 //
 
 import SwiftUI
+import AVFoundation
 
 struct ContentView: View {
     
     @State private var textInput: String = ""
+    let device = AVCaptureDevice.default(for: .video)
     
     var body: some View {
         
@@ -45,7 +47,11 @@ struct ContentView: View {
                 Spacer()
                 
                 Button {
-                    // action
+                    if device?.torchMode == .on {
+                        toggleTorch(on: false)
+                    } else {
+                        toggleTorch(on: true)
+                    }
                 } label: {
                     HStack {
                         Image(systemName: "flashlight.on.fill")
@@ -61,6 +67,25 @@ struct ContentView: View {
             }
             .padding()
             .foregroundColor(Color.white)
+        }
+    }
+    
+    // Fonction qui permet d'aller ou éteindre la lampe torche
+    
+    func toggleTorch(on: Bool) {
+        guard let device = AVCaptureDevice.default(for: .video) else { return }
+        if device.hasTorch {
+            do {
+                try device.lockForConfiguration()
+                if on {
+                    device.torchMode = .on
+                } else {
+                    device.torchMode = .off
+                }
+                device.unlockForConfiguration()
+            } catch {
+                print("Torch could not be used")
+            }
         }
     }
 }
