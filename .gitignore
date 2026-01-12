@@ -1,1 +1,9 @@
+# Xcode - Préférences personnelles
 *.xcuserstate
+
+# macOS - Fichiers système
+.DS_Store
+
+# Xcode - Fichiers compilés
+build/
+DerivedData/
