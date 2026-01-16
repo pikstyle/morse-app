@@ -9,9 +9,16 @@ import SwiftUI
 import AVFoundation
 
 struct ContentView: View {
-    @State private var textInput: String = ""
+    
+    @State private var textInput = ""
+    @State private var morseCodeArray: [String] = []
+    @State private var isFlashlightOn: Bool = false
+    @State private var flashlightTask: Task<Void, Never>?
+    @FocusState private var isFocus: Bool
+    
+
     let flashlight = AVCaptureDevice.default(for: .video)
-    let morseDictionnary: [String:String] = [
+    let morseDictionary: [String:String] = [
         "a": ".-",
         "b": "-...",
         "c": "-.-.",
@@ -37,65 +44,76 @@ struct ContentView: View {
         "w": ".--",
         "x": "-..-",
         "y": "-.--",
-        "z": "--.."
+        "z": "--..",
+        " ": "/"
     ]
-    @State private var morseCode = [String]()
-        
+    
+    let ditDuration: Double = 0.2
+    let dahDuration: Double = 0.6
+    let characterSpaceDuration: Double = 0.6
+    let wordSpaceDuration: Double = 1.4
+    private let darkGray = Color(red: 0.1, green: 0.1, blue: 0.1)
+    private let lightGray = Color(red: 0.11, green: 0.11, blue: 0.11)
+
+
+                
     var body: some View {
         ZStack {
-            Color(red: 0.1, green: 0.1, blue: 0.1)
+            darkGray
                 .ignoresSafeArea()
             
-            VStack {
-                Spacer()
-                
+            VStack() {
+                                
                 Text("Text To Morse")
                     .font(.largeTitle)
-                
+
                 Spacer()
-                
-                TextEditor(text: $textInput)
-                    .frame(height: 100)
-                    .scrollContentBackground(.hidden)
-                    .background(Color(red: 0.1, green: 0.1, blue: 0.1))
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
+                                
+                TextField("Text here :", text: $textInput)
                     .padding()
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.white, lineWidth: 2)
-                    )
-                    .padding()
-                
-                Spacer()
-                
-                Text("Text en morse : \(morseCode.joined(separator: " "))")
-                
+                    .background(lightGray.cornerRadius(20))
+                    .focused($isFocus)
+                    .onSubmit {
+                        isFocus = false
+                    }
+                                
+                Text("Text en Morse : \(morseCodeArray.joined(separator: " "))")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 20)
                 Spacer()
                 
                 Button {
-                    convert()
-                    if flashlight?.torchMode == .on {
-                        toggleTorch(on: false)
-                    } else {
-                        toggleTorch(on: true)
+                    morseCodeArray = convertLettersToMorse(text: textInput)
+                    flashlightTask = Task {
+                        await flashlightMorse()
                     }
                 } label: {
                     HStack {
-                        Image(systemName: "flashlight.on.fill")
-                        Text("Convert")
+                        Image(systemName: isFlashlightOn ? "flashlight.off.fill" : "flashlight.on.fill")
+                           Text(isFlashlightOn ? "Flashing..." : "Convert")
                     }
-                    .padding()
+                }
+                .buttonStyle(.bordered)
+                .tint(.green)
+                .font(.title)
+                .disabled(isFlashlightOn)
+                                
+                Button {
+                    cancelFlashlightMorse()
+                } label: {
+                    HStack {
+                        Image(systemName: "stop.circle.fill")
+                        Text("Stop")
+                    }
                 }
                 .buttonStyle(.bordered)
                 .tint(.red)
                 .font(.title)
-                                                
-                Spacer()
-                
+                .disabled(!isFlashlightOn)
+                                
             }
-            .padding()
             .foregroundColor(.white)
+            .padding(30)
         }
     }
     
@@ -115,34 +133,76 @@ struct ContentView: View {
         }
     }
     
-    // Convert text to an array of letters
+    // Convert the text input of the user to an array of it's morse code
     
-    func convertTextToLetters(text: String) -> [String] {
-        var letterArray = [String]()
-        for letter in text {
-            letterArray.append(letter.lowercased())
-        }
-        return letterArray
-    }
-    
-    // Convert the array of letters to an array of string, where each string represent the letter by it's morse representation
-    
-    func convertLettersToMorse(letters: [String]) -> [String] {
+    func convertLettersToMorse(text: String) -> [String] {
         var morseArray = [String]()
-        for letter in letters {
-            for (key, value) in morseDictionnary where key == letter {
-                morseArray.append(value)
+        for letter in text.lowercased() {
+            if let morseCode = morseDictionary[String(letter)] {
+                morseArray.append(morseCode)
+                morseArray.append("*")
             }
         }
         return morseArray
     }
     
-    // Return the final conversion
+    // Convert the morseCodeArry with the flashlight
     
-    func convert() {
-        let letters = convertTextToLetters(text: textInput)
-        morseCode = convertLettersToMorse(letters: letters)
-        print(morseCode)
+    func flashlightMorse() async {
+        
+        isFlashlightOn = true
+        
+        for morseBloc in morseCodeArray {
+            
+            // Vérifie à chaque itération de bloc si on a stop
+            
+            if Task.isCancelled {
+                toggleTorch(on: false)
+                break
+            }
+            // Gérer les espaces entre les lettres et entre les mots
+            
+            if morseBloc == "*" {
+                try? await Task.sleep(for: .seconds(characterSpaceDuration))
+                
+            } else if morseBloc == "/" {
+                try? await Task.sleep(for: .seconds(wordSpaceDuration))
+                
+            } else {
+
+                // Gérer les espaces dans le morse bloc
+                
+                for char in morseBloc {
+                    
+                    // Vérifie à chaque itération de char si on a stop
+                    
+                    if Task.isCancelled {
+                        toggleTorch(on: false)
+                        break
+                    }
+                    
+                    if char == "." {
+                        toggleTorch(on: true)
+                        try? await Task.sleep(for: .seconds(ditDuration))
+                        toggleTorch(on: false)
+                        try? await Task.sleep(for: .seconds(0.2))
+                        
+                    } else if char == "-" {
+                        toggleTorch(on: true)
+                        try? await Task.sleep(for: .seconds(dahDuration))
+                        toggleTorch(on: false)
+                        try? await Task.sleep(for: .seconds(0.2))
+                    }
+                }
+            }
+        }
+        isFlashlightOn = false
+    }
+    
+    func cancelFlashlightMorse() {
+        flashlightTask?.cancel()
+        toggleTorch(on: false)
+        isFlashlightOn = false
     }
 }
 
