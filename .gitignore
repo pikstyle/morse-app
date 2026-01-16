@@ -1,5 +1,6 @@
 # Xcode - Préférences personnelles
 *.xcuserstate
+xcuserdata/
 
 # macOS - Fichiers système
 .DS_Store
