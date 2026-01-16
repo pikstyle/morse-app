@@ -1,6 +1,5 @@
 # Xcode - Préférences personnelles
-*.xcuserstate
-.xcodeproj/xcuserdata/
+morse-app.xcodeproj/xcuserdata/
 
 # macOS - Fichiers système
 .DS_Store
