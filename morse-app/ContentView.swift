@@ -15,10 +15,11 @@ struct ContentView: View {
     @State private var isFlashlightOn: Bool = false
     @State private var flashlightTask: Task<Void, Never>?
     @FocusState private var isFocus: Bool
-    
+    @State private var mulitlier: Double = 1
 
     let flashlight = AVCaptureDevice.default(for: .video)
     let morseDictionary: [String:String] = [
+        // Lettres
         "a": ".-",
         "b": "-...",
         "c": "-.-.",
@@ -45,6 +46,48 @@ struct ContentView: View {
         "x": "-..-",
         "y": "-.--",
         "z": "--..",
+        
+        // Chiffres
+        "0": "-----",
+        "1": ".----",
+        "2": "..---",
+        "3": "...--",
+        "4": "....-",
+        "5": ".....",
+        "6": "-....",
+        "7": "--...",
+        "8": "---..",
+        "9": "----.",
+        
+        // Poncutation
+        ".": ".-.-.-",
+        ",": "--..--",
+        "?": "..--..",
+        "!": "-.-.--",
+        "'": ".----.",
+        "\"": ".-..-.",
+        ":": "---...",
+        ";": "-.-.-.",
+        "-": "-....-",
+        "/": "-..-.",
+        "(": "-.--.",
+        ")": "-.--.-",
+        
+        // Caractères spéciaux
+        "@": ".--.-.",
+        "&": ".-...",
+        "=": "-...-",
+        "+": ".-.-.",
+        
+        // Accents
+        "à": ".--.-",
+        "è": ".-..-",
+        "é": "..-..",
+        "ç": "-.-..",
+        "ô": "---.",
+        "ù": "..--",
+        
+        // Espace
         " ": "/"
     ]
     
@@ -76,11 +119,36 @@ struct ContentView: View {
                     .onSubmit {
                         isFocus = false
                     }
-                                
-                Text("Text en Morse : \(morseCodeArray.joined(separator: " "))")
+                
+                VStack {
+                    Text("Text en morse : ")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    ScrollView {
+                        Text(morseCodeArray.joined())
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                    }
+                    .frame(height: 200)
+                    
+                    Button {
+                        copyToClipboard()
+                    } label: {
+                        Text("Copy to clipboard")
+                    }
+                    .buttonStyle(.bordered)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 20)
+
+                }
+                
                 Spacer()
+                
+                VStack() {
+                    Text(String(format: "Vitesse : %.1f", mulitlier))
+                    Slider(value: $mulitlier, in: 0.1...2 ,step: 0.1)
+                        .disabled(isFlashlightOn)
+                }
+                .padding(.bottom, 30)
                 
                 Button {
                     morseCodeArray = convertLettersToMorse(text: textInput)
@@ -140,7 +208,7 @@ struct ContentView: View {
         for letter in text.lowercased() {
             if let morseCode = morseDictionary[String(letter)] {
                 morseArray.append(morseCode)
-                morseArray.append("*")
+                morseArray.append(" ")
             }
         }
         return morseArray
@@ -162,11 +230,11 @@ struct ContentView: View {
             }
             // Gérer les espaces entre les lettres et entre les mots
             
-            if morseBloc == "*" {
-                try? await Task.sleep(for: .seconds(characterSpaceDuration))
+            if morseBloc == " " {
+                try? await Task.sleep(for: .seconds(characterSpaceDuration * mulitlier))
                 
             } else if morseBloc == "/" {
-                try? await Task.sleep(for: .seconds(wordSpaceDuration))
+                try? await Task.sleep(for: .seconds(wordSpaceDuration * mulitlier))
                 
             } else {
 
@@ -183,15 +251,15 @@ struct ContentView: View {
                     
                     if char == "." {
                         toggleTorch(on: true)
-                        try? await Task.sleep(for: .seconds(ditDuration))
+                        try? await Task.sleep(for: .seconds(ditDuration * mulitlier))
                         toggleTorch(on: false)
-                        try? await Task.sleep(for: .seconds(0.2))
+                        try? await Task.sleep(for: .seconds(ditDuration * mulitlier))
                         
                     } else if char == "-" {
                         toggleTorch(on: true)
-                        try? await Task.sleep(for: .seconds(dahDuration))
+                        try? await Task.sleep(for: .seconds(dahDuration * mulitlier))
                         toggleTorch(on: false)
-                        try? await Task.sleep(for: .seconds(0.2))
+                        try? await Task.sleep(for: .seconds(ditDuration * mulitlier))
                     }
                 }
             }
@@ -199,11 +267,20 @@ struct ContentView: View {
         isFlashlightOn = false
     }
     
+    // Fonction pour arrêter l'exécution de la flashlight et de la traduction
+    
     func cancelFlashlightMorse() {
         flashlightTask?.cancel()
         toggleTorch(on: false)
         isFlashlightOn = false
     }
+    
+    // Fonction pour copier
+    
+    func copyToClipboard() {
+        UIPasteboard.general.string = morseCodeArray.joined()
+    }
+    
 }
 
 #Preview {
