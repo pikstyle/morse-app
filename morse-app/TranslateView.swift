@@ -8,14 +8,15 @@
 import SwiftUI
 import AVFoundation
 
-struct ContentView: View {
+struct TranslateView: View {
     
-    @State private var textInput = ""
+    @State var textInput = ""
     @State private var morseCodeArray: [String] = []
     @State private var isFlashlightOn: Bool = false
     @State private var flashlightTask: Task<Void, Never>?
     @FocusState private var isFocus: Bool
     @State private var mulitlier: Double = 1
+    @State private var showCreateSheet: Bool = false
 
     let flashlight = AVCaptureDevice.default(for: .video)
     let morseDictionary: [String:String] = [
@@ -101,87 +102,101 @@ struct ContentView: View {
 
                 
     var body: some View {
-        ZStack {
-            darkGray
-                .ignoresSafeArea()
+        
+        NavigationStack {
             
-            VStack() {
-                                
-                Text("Text To Morse")
-                    .font(.largeTitle)
-
-                Spacer()
-                                
-                TextField("Text here :", text: $textInput)
-                    .padding()
-                    .background(lightGray.cornerRadius(20))
-                    .focused($isFocus)
-                    .onSubmit {
-                        isFocus = false
-                    }
+            ZStack {
+                darkGray
+                    .ignoresSafeArea()
                 
                 VStack {
-                    Text("Text en morse : ")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    ScrollView {
-                        Text(morseCodeArray.joined())
+                                                        
+                    HStack {
+                        TextField("Text here :", text: $textInput)
+                            .padding()
+                            .background(lightGray.cornerRadius(20))
+                            .focused($isFocus)
+                            .onSubmit {
+                                isFocus = false
+                            }
+                        
+                        Button {
+                            showCreateSheet.toggle()
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .buttonStyle(.bordered)
+                        
+                    }
+                    
+                    VStack {
+                        Text("Text en morse : ")
                             .frame(maxWidth: .infinity, alignment: .leading)
 
+                        ScrollView {
+                            Text(morseCodeArray.joined())
+                                .frame(maxWidth: .infinity, alignment: .leading)
+
+                        }
+                        .frame(height: 200)
+                        
+                        Button {
+                            copyToClipboard()
+                        } label: {
+                            Text("Copy to clipboard")
+                        }
+                        .buttonStyle(.bordered)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        
                     }
-                    .frame(height: 200)
+                    
+                    Spacer()
+                    
+                    VStack() {
+                        Text(String(format: "Vitesse : %.1f", mulitlier))
+                        Slider(value: $mulitlier, in: 0.1...2 ,step: 0.1)
+                            .disabled(isFlashlightOn)
+                    }
+                    .padding(.bottom, 30)
                     
                     Button {
-                        copyToClipboard()
+                        morseCodeArray = convertLettersToMorse(text: textInput)
+                        flashlightTask = Task {
+                            await flashlightMorse()
+                        }
                     } label: {
-                        Text("Copy to clipboard")
+                        HStack {
+                            Image(systemName: isFlashlightOn ? "flashlight.off.fill" : "flashlight.on.fill")
+                               Text(isFlashlightOn ? "Flashing..." : "Convert")
+                        }
                     }
                     .buttonStyle(.bordered)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                }
-                
-                Spacer()
-                
-                VStack() {
-                    Text(String(format: "Vitesse : %.1f", mulitlier))
-                    Slider(value: $mulitlier, in: 0.1...2 ,step: 0.1)
-                        .disabled(isFlashlightOn)
-                }
-                .padding(.bottom, 30)
-                
-                Button {
-                    morseCodeArray = convertLettersToMorse(text: textInput)
-                    flashlightTask = Task {
-                        await flashlightMorse()
+                    .tint(.green)
+                    .font(.title)
+                    .disabled(isFlashlightOn)
+                                    
+                    Button {
+                        cancelFlashlightMorse()
+                    } label: {
+                        HStack {
+                            Image(systemName: "stop.circle.fill")
+                            Text("Stop")
+                        }
                     }
-                } label: {
-                    HStack {
-                        Image(systemName: isFlashlightOn ? "flashlight.off.fill" : "flashlight.on.fill")
-                           Text(isFlashlightOn ? "Flashing..." : "Convert")
-                    }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                    .font(.title)
+                    .disabled(!isFlashlightOn)
+                                    
                 }
-                .buttonStyle(.bordered)
-                .tint(.green)
-                .font(.title)
-                .disabled(isFlashlightOn)
-                                
-                Button {
-                    cancelFlashlightMorse()
-                } label: {
-                    HStack {
-                        Image(systemName: "stop.circle.fill")
-                        Text("Stop")
-                    }
+                .foregroundColor(.white)
+                .padding(30)
+                .sheet(isPresented: $showCreateSheet) {
+                    CreateView()
                 }
-                .buttonStyle(.bordered)
-                .tint(.red)
-                .font(.title)
-                .disabled(!isFlashlightOn)
-                                
             }
-            .foregroundColor(.white)
-            .padding(30)
+            .navigationTitle("Translate")
+            .toolbarColorScheme(.dark, for: .navigationBar)
         }
     }
     
@@ -284,5 +299,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    TranslateView()
 }
