@@ -192,7 +192,10 @@ struct TranslateView: View {
                 .foregroundColor(.white)
                 .padding(30)
                 .sheet(isPresented: $showCreateSheet) {
-                    CreateView()
+                    SaveTextView { save in
+                        print("Save text !")
+                        dump(save)
+                    }
                 }
             }
             .navigationTitle("Translate")

@@ -15,7 +15,7 @@ struct MainView: View {
                     Label("Translate", systemImage: "pencil")
                 }
             
-            SaveView()
+            SavedView(item: .empty)
                 .tabItem {
                     Label("Save", systemImage: "doc.text")
                 }
